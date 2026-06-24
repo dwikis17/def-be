@@ -4,10 +4,12 @@ import helmet from 'helmet';
 import cors from 'cors';
 import hpp from 'hpp';
 import { pinoHttp } from 'pino-http';
-import { env } from './config/env.js';
+import { env, isProd } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { registerRoutes } from './routes.js';
+
+const LOCALHOST = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 /**
  * Build the Express app. Exported (without listening) so integration tests can
@@ -21,9 +23,18 @@ export function createApp(): Express {
   app.set('trust proxy', 1);
 
   app.use(helmet());
+  const allowed = new Set(env.CORS_ORIGINS);
   app.use(
     cors({
-      origin: env.CORS_ORIGINS,
+      // Allow the configured origins; in dev also allow ANY localhost port (so
+      // running the frontend on 3001/3002/etc. just works). Requests with no
+      // Origin (curl, server-to-server) are allowed.
+      origin: (origin, cb) => {
+        if (!origin || allowed.has(origin) || (!isProd && LOCALHOST.test(origin))) {
+          return cb(null, true);
+        }
+        return cb(new Error(`CORS: origin ${origin} not allowed`));
+      },
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
     }),

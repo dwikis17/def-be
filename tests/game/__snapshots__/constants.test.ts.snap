@@ -94,24 +94,24 @@ exports[`canonical constants snapshot > grid expansions 1`] = `
     "levelRequired": 1,
   },
   {
-    "cost": 500,
+    "cost": 0,
     "gridSize": 3,
-    "levelRequired": 5,
+    "levelRequired": 1,
   },
   {
-    "cost": 1500,
+    "cost": 1000,
     "gridSize": 4,
-    "levelRequired": 10,
+    "levelRequired": 3,
   },
   {
-    "cost": 3000,
+    "cost": 2500,
     "gridSize": 5,
-    "levelRequired": 18,
+    "levelRequired": 7,
   },
   {
     "cost": 5000,
     "gridSize": 6,
-    "levelRequired": 25,
+    "levelRequired": 12,
   },
 ]
 `;

@@ -8,12 +8,14 @@ export type GridExpansion = {
   levelRequired: number;
 };
 
+// Players start at 3×3 (STARTING_GRID_SIZE). Expansion gates are reachable so
+// growing the farm is an early-game goal, not a level-10 wall.
 export const GRID_EXPANSIONS: GridExpansion[] = [
   { gridSize: 2, cost: 0, levelRequired: 1 },
-  { gridSize: 3, cost: 500, levelRequired: 5 },
-  { gridSize: 4, cost: 1500, levelRequired: 10 },
-  { gridSize: 5, cost: 3000, levelRequired: 18 },
-  { gridSize: 6, cost: 5000, levelRequired: 25 },
+  { gridSize: 3, cost: 0, levelRequired: 1 }, // starting size (free)
+  { gridSize: 4, cost: 1000, levelRequired: 3 },
+  { gridSize: 5, cost: 2500, levelRequired: 7 },
+  { gridSize: 6, cost: 5000, levelRequired: 12 },
 ];
 
 export const MIN_GRID_SIZE = 2;
