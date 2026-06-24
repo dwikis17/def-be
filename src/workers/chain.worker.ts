@@ -7,18 +7,21 @@ import { publishToPlayer } from '../realtime/pubsub.js';
 import type { CnftMintJob, ClaimTransferJob } from '../services/chain.queue.js';
 import { chainConfigured } from '../solana/connection.js';
 import { mintBloomTo } from '../solana/bloom.js';
-import { mintBloomCnft } from '../solana/cnft.js';
+import { mintBloomCnft, CnftReadbackError } from '../solana/cnft.js';
 
 /**
  * Chain worker (docs §05). Consumes the cnft_mint and claim_transfer queues.
  *
  * Solana effects are gated on configuration: until the treasury keypair + mint
  * are set, handlers leave rows in 'pending' and the reconcile job surfaces them.
- * The claim transfer is fully wired (SPL mint-on-claim); the cNFT mint
- * (Bubblegum) is the remaining TODO.
+ * Both the claim transfer (SPL mint-on-claim) and the cNFT mint (Bubblegum) are
+ * wired; cNFT minting tolerates RPC readback flakiness (see CnftReadbackError).
+ *
+ * Exported so a re-process path (scripts/retry-failed-nfts.ts) can reuse the
+ * exact same logic — re-running a 'failed' or 'pending' row is safe/idempotent.
  */
 
-async function processCnftMint(job: CnftMintJob): Promise<void> {
+export async function processCnftMint(job: CnftMintJob): Promise<void> {
   const nft = await prisma.nft.findUnique({ where: { id: job.nftId } });
   if (!nft || nft.chainStatus === 'minted') return; // idempotent
   if (!chainConfigured() || !env.MERKLE_TREE_ADDRESS) {
@@ -41,6 +44,21 @@ async function processCnftMint(job: CnftMintJob): Promise<void> {
     });
     publishToPlayer(nft.playerId, { type: 'nft.minted', nftId: nft.id, assetId });
   } catch (err) {
+    // The mint tx landed on-chain; only the asset-id readback failed (RPC lag /
+    // rate limit). Record the signature and mark minted — re-minting would create
+    // a DUPLICATE cNFT. The asset id can be backfilled from the signature later.
+    if (err instanceof CnftReadbackError) {
+      logger.warn(
+        { nftId: nft.id, signature: err.signature },
+        'cnft_mint: tx confirmed but asset id unresolved; marking minted (asset id pending backfill)',
+      );
+      await prisma.nft.update({
+        where: { id: nft.id },
+        data: { chainStatus: 'minted', txSignature: err.signature, mintedAt: new Date() },
+      });
+      return;
+    }
+    // The mint never landed — genuinely failed; safe to retry the whole mint.
     logger.error({ err, nftId: nft.id }, 'cnft_mint failed; marking failed (retryable)');
     await prisma.nft.update({ where: { id: nft.id }, data: { chainStatus: 'failed' } });
   }

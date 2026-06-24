@@ -1,5 +1,5 @@
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
-import { keypairIdentity, publicKey, none, generateSigner } from '@metaplex-foundation/umi';
+import { keypairIdentity, publicKey, none, generateSigner, type Umi } from '@metaplex-foundation/umi';
 import {
   mplBubblegum,
   createTree,
@@ -36,7 +36,55 @@ export async function createBloomTree(): Promise<string> {
 
 export type CnftMeta = { name: string; uri: string };
 
-/** Mint a cNFT to `ownerPubkey`. Returns the tx signature + derived asset id. */
+/**
+ * Thrown when the cNFT mint transaction confirmed on-chain but the new leaf
+ * (asset id) could not be read back — typically RPC indexing lag or rate limits
+ * on `getTransaction`. Carries the confirmed `signature` so the caller can record
+ * it and mark the NFT minted, instead of re-minting (which would duplicate it).
+ */
+export class CnftReadbackError extends Error {
+  constructor(
+    message: string,
+    readonly signature: string,
+  ) {
+    super(message);
+    this.name = 'CnftReadbackError';
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Read the new leaf / asset id from a confirmed mint tx, retrying through RPC
+ * indexing lag and rate limits (the tx isn't always parseable the instant
+ * sendAndConfirm resolves). Backoff: 0.5, 1, 2, 4, 8, 8s.
+ */
+async function resolveAssetId(umi: Umi, signature: Uint8Array): Promise<string> {
+  const sigB58 = bs58.encode(signature);
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    try {
+      const leaf = await parseLeafFromMintV1Transaction(umi, signature);
+      return leaf.id.toString();
+    } catch (err) {
+      lastErr = err;
+      await sleep(Math.min(8000, 500 * 2 ** (attempt - 1)));
+    }
+  }
+  throw new CnftReadbackError(
+    `cNFT minted (sig ${sigB58}) but asset id unresolved after retries: ${(lastErr as Error)?.message}`,
+    sigB58,
+  );
+}
+
+/**
+ * Mint a cNFT to `ownerPubkey`. Returns the tx signature + derived asset id.
+ *
+ * Two distinct failure modes the caller must treat differently:
+ * - `mintV1(...).sendAndConfirm` throws → the mint never landed; safe to retry.
+ * - `resolveAssetId` throws `CnftReadbackError` → the mint DID land; only the
+ *   asset-id readback failed. Record the signature; do NOT re-mint.
+ */
 export async function mintBloomCnft(
   ownerPubkey: string,
   meta: CnftMeta,
@@ -59,6 +107,6 @@ export async function mintBloomCnft(
     },
   }).sendAndConfirm(umi);
 
-  const leaf = await parseLeafFromMintV1Transaction(umi, signature);
-  return { signature: bs58.encode(signature), assetId: leaf.id.toString() };
+  const assetId = await resolveAssetId(umi, signature);
+  return { signature: bs58.encode(signature), assetId };
 }
