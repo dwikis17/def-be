@@ -47,10 +47,13 @@ DIRECT_URL="postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:
 `pg-boss` requires a session connection (LISTEN/NOTIFY, advisory locks) and so
 uses `DIRECT_URL`. Set `DEV_TIME_SCALE=360` in dev (1h growth → 10s); `1` in prod.
 
-> **Pooler note:** this app uses the **session pooler (5432)** for `DATABASE_URL`,
-> not the transaction pooler (6543). A persistent server doing interactive
-> transactions + `SELECT FOR UPDATE` needs session semantics; the transaction
-> pooler is for serverless/edge and breaks Prisma interactive transactions.
+> **Pooler note:** `DATABASE_URL` uses the **transaction pooler (6543)** with
+> `pgbouncer=true&connection_limit=10` — it multiplexes clients so it doesn't
+> exhaust Supabase's session-mode client cap (15 on the free tier). Interactive
+> transactions + `SELECT FOR UPDATE` work there as long as `connection_limit > 1`
+> (a `connection_limit=1` pool deadlocks). `DIRECT_URL` (session pooler 5432) is
+> used for migrations and pg-boss (which needs LISTEN/NOTIFY); pg-boss caps its
+> own pool at `max: 3` so the two together stay well under 15.
 
 ## Scripts
 

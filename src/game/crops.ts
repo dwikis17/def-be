@@ -2,7 +2,7 @@ import type { CropId } from './types.js';
 
 /**
  * Canonical crop definitions — docs §03 (constants/crops.ts mirror).
- * Growth is real-time, measured from `wateredAt` against `growthDurationMs`.
+ * Growth is real-time, measured from `plantedAt` against `growthDurationMs`.
  */
 export type CropDef = {
   id: CropId;

@@ -22,7 +22,9 @@ export const QUEUES = {
 export async function startJobQueue(): Promise<PgBoss> {
   if (boss) return boss;
   const connectionString = env.DIRECT_URL ?? env.DATABASE_URL;
-  boss = new PgBoss({ connectionString, schema: 'pgboss' });
+  // Cap pg-boss's pool — Supabase's session pooler (free tier) allows only 15
+  // clients total, shared with the app's Prisma pool. Keep this small.
+  boss = new PgBoss({ connectionString, schema: 'pgboss', max: 2 });
   boss.on('error', (err) => logger.error({ err }, 'pg-boss error'));
   await boss.start();
   // Ensure all queues exist before scheduling/working them. Sequential, not

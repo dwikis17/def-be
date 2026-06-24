@@ -21,13 +21,6 @@ gardenRouter.post('/plant', validate({ body: plantBody }), async (req, res) => {
   res.json(await garden.plant(player.id, req.idempotencyKey!, body!.plotIndex, body!.cropId));
 });
 
-const waterBody = z.object({ plotIndex });
-gardenRouter.post('/water', validate({ body: waterBody }), async (req, res) => {
-  const player = getPlayer(req);
-  const { body } = validated<z.infer<typeof waterBody>>(req);
-  res.json(await garden.water(player.id, req.idempotencyKey!, body!.plotIndex));
-});
-
 const harvestBody = z.object({ plotIndex });
 gardenRouter.post('/harvest', validate({ body: harvestBody }), async (req, res) => {
   const player = getPlayer(req);

@@ -29,7 +29,7 @@ export const authLimiter = rateLimit({
   keyGenerator: (req: Request) => req.ip ?? 'unknown',
 });
 
-/** Value-bearing actions (plant/water/harvest/buy/claim). */
+/** Value-bearing actions (plant/harvest/sell/buy/claim). */
 export const valueActionLimiter = rateLimit({ ...shared, windowMs: 60_000, limit: 120 });
 
 /** General authenticated reads. */

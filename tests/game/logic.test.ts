@@ -18,6 +18,15 @@ import {
   type Plot,
 } from '../../src/game/index.js';
 
+describe('produce value', () => {
+  it('floor(baseHarvest × tier multiplier) for sellable produce', async () => {
+    const { produceUnitValue } = await import('../../src/services/inventory.service.js');
+    expect(produceUnitValue('carrot', 'common')).toBe(40); // 40 × 1
+    expect(produceUnitValue('tomato', 'frozen')).toBe(65 * 5); // 325
+    expect(produceUnitValue('potato', 'wet')).toBe(45 * 2); // 90
+  });
+});
+
 describe('economy splits', () => {
   it('splits seed cost 50/50 with remainder to treasury', () => {
     expect(splitSeedCost(50)).toEqual({ burned: 25, treasury: 25 });
@@ -118,13 +127,12 @@ describe('hybrid breeding', () => {
 
 describe('growth timing (server clock)', () => {
   const carrot = CROPS.carrot;
-  it('unwatered plot has zero progress', () => {
-    const plot: Plot = { index: 0, type: 'crop', cropId: 'carrot', plantedAt: 1000, wateredAt: null };
+  it('empty/unplanted plot has zero progress', () => {
+    const plot: Plot = { index: 0, type: 'empty' };
     expect(growthProgress(plot, carrot, 99999999)).toBe(0);
   });
-  it('reaches harvestable after the (scaled) duration', () => {
-    const wateredAt = 0;
-    const plot: Plot = { index: 0, type: 'crop', cropId: 'carrot', plantedAt: 0, wateredAt };
+  it('grows from plantedAt and reaches harvestable after the (scaled) duration', () => {
+    const plot: Plot = { index: 0, type: 'crop', cropId: 'carrot', plantedAt: 0 };
     const scale = 360;
     const dur = carrot.growthDurationMs / scale;
     expect(canHarvest(plot, carrot, dur - 1, scale)).toBe(false);

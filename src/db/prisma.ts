@@ -11,6 +11,10 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: isProd ? ['warn', 'error'] : ['warn', 'error'],
+    // Interactive transactions take a garden/listing FOR UPDATE lock; under
+    // concurrency a tx may wait for a pooled connection + the lock. Give it room
+    // (defaults are maxWait 2s / timeout 5s) so brief contention doesn't fail.
+    transactionOptions: { maxWait: 10_000, timeout: 20_000 },
   });
 
 if (!isProd) globalForPrisma.prisma = prisma;

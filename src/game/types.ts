@@ -51,10 +51,8 @@ export type Plot = {
   index: number;
   type: 'empty' | 'crop' | 'sprinkler';
   cropId?: CropId;
-  /** When the seed was planted (server clock). */
+  /** When the seed was planted (server clock) — growth is measured from here. */
   plantedAt?: number;
-  /** When last watered — growth is measured from here. null = not yet watered. */
-  wateredAt?: number | null;
   /** Tier rolled at harvest; transient (set just before clearing the plot). */
   mutationTier?: MutationTier;
   /** Present when type === 'sprinkler'. */

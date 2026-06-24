@@ -72,12 +72,11 @@ describe.skipIf(!RUN)('gameplay (DB)', () => {
   it('harvest value comes from the server, credits the ledger, clears the plot', async () => {
     const { token, player } = await guest();
     await request(app).post('/garden/plant').set(auth(token)).set('Idempotency-Key', 'p').send({ plotIndex: 0, cropId: 'carrot' });
-    await request(app).post('/garden/water').set(auth(token)).set('Idempotency-Key', 'w').send({ plotIndex: 0 });
 
-    // Fast-forward growth by back-dating wateredAt past the scaled duration.
+    // Fast-forward growth by back-dating plantedAt past the scaled duration.
     const garden = await prisma.garden.findUniqueOrThrow({ where: { playerId: player.id } });
-    const plots = garden.plots as Array<{ index: number; wateredAt?: number | null }>;
-    plots[0]!.wateredAt = Date.now() - (CROPS.carrot.growthDurationMs / 360) - 5000;
+    const plots = garden.plots as Array<{ index: number; plantedAt?: number }>;
+    plots[0]!.plantedAt = Date.now() - (CROPS.carrot.growthDurationMs / 360) - 5000;
     await prisma.garden.update({ where: { playerId: player.id }, data: { plots: plots as object[] } });
 
     const harvest = await request(app).post('/garden/harvest').set(auth(token)).set('Idempotency-Key', 'h').send({ plotIndex: 0 });

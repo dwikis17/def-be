@@ -3,16 +3,15 @@ import type { GrowthStage, Plot } from './types.js';
 import { clamp } from './types.js';
 
 /**
- * Time-based growth — docs §02/§03. Growth is measured from `wateredAt` against
- * the crop's `growthDurationMs`, divided by `timeScale` (DEV_TIME_SCALE = 360 in
- * dev, 1 in prod). ALL timing uses the server clock; `now` is server-supplied.
- *
- * A freshly planted, unwatered plot has progress 0 — watering starts growth.
+ * Time-based growth. Growth is measured from `plantedAt` against the crop's
+ * `growthDurationMs`, divided by `timeScale` (DEV_TIME_SCALE = 360 in dev, 1 in
+ * prod). ALL timing uses the server clock; `now` is server-supplied. There is no
+ * watering — a crop grows on its own from the moment it's planted.
  */
 export function growthProgress(plot: Plot, def: CropDef, now: number, timeScale = 1): number {
-  if (plot.type !== 'crop' || plot.wateredAt == null) return 0;
+  if (plot.type !== 'crop' || plot.plantedAt == null) return 0;
   const duration = def.growthDurationMs / Math.max(timeScale, 1e-9);
-  return clamp((now - plot.wateredAt) / duration, 0, 1);
+  return clamp((now - plot.plantedAt) / duration, 0, 1);
 }
 
 /** True once the crop is fully grown (progress >= 1). */
@@ -28,8 +27,8 @@ export function stageForProgress(progress: number): GrowthStage {
   return 0;
 }
 
-/** Server time (epoch ms) the plot will be ready, or null if not watered. */
+/** Server time (epoch ms) the plot will be ready, or null if empty. */
 export function readyAt(plot: Plot, def: CropDef, timeScale = 1): number | null {
-  if (plot.type !== 'crop' || plot.wateredAt == null) return null;
-  return plot.wateredAt + def.growthDurationMs / Math.max(timeScale, 1e-9);
+  if (plot.type !== 'crop' || plot.plantedAt == null) return null;
+  return plot.plantedAt + def.growthDurationMs / Math.max(timeScale, 1e-9);
 }

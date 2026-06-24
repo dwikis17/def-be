@@ -10,8 +10,6 @@ import {
   isSprinklerTier,
   splitSeedCost,
   levelFromXp,
-  XP_REWARDS,
-  DAILY_WATERING_XP_CAP,
   type ActivePet,
   type Plot,
   type SprinklerTier,
@@ -24,10 +22,6 @@ import {
   plotsForDb,
 } from '../../services/garden.state.js';
 import { performHarvest } from '../../services/harvest.service.js';
-
-function serverDate(now: number): string {
-  return new Date(now).toISOString().slice(0, 10);
-}
 
 function getPlotInRange(plots: Plot[], index: number): Plot {
   const plot = plots[index];
@@ -64,78 +58,14 @@ export async function plant(playerId: string, key: string, plotIndex: number, cr
       { kind: 'treasury', amount: BigInt(treasury), ref: 'plant' },
     ]);
 
-    plots[plotIndex] = { index: plotIndex, type: 'crop', cropId, plantedAt: Date.now(), wateredAt: null };
+    // Crops grow on their own from plantedAt — there is no watering.
+    plots[plotIndex] = { index: plotIndex, type: 'crop', cropId, plantedAt: Date.now() };
     await tx.garden.update({ where: { playerId }, data: { plots: plotsForDb(plots) } });
 
     const activePet = (garden.activePet as ActivePet | null) ?? null;
     return { garden: gardenView(garden.gridSize, plots, activePet), balance: balance - cost };
   });
 }
-
-/** POST /garden/water — starts/continues growth; pets may auto-water extras. */
-export async function water(playerId: string, key: string, plotIndex: number) {
-  return withIdempotency(playerId, key, async (tx) => {
-    await lockGarden(tx, playerId);
-    const [garden, player] = await Promise.all([
-      tx.garden.findUniqueOrThrow({ where: { playerId } }),
-      tx.player.findUniqueOrThrow({ where: { id: playerId } }),
-    ]);
-    const plots = asPlots(garden.plots);
-    const plot = getPlotInRange(plots, plotIndex);
-    if (plot.type !== 'crop') throw new AppError('PLOT_EMPTY', 'No crop to water in that plot');
-
-    const now = Date.now();
-    plots[plotIndex] = { ...plot, wateredAt: now };
-
-    // Pet auto-water: also water up to `autoWater` other unwatered crop plots.
-    const activePet = (garden.activePet as ActivePet | null) ?? null;
-    if (activePet) {
-      const cap = PET_AUTOWATER[activePet.tier];
-      let watered = 0;
-      for (const p of plots) {
-        if (watered >= cap) break;
-        if (p.index === plotIndex) continue;
-        if (p.type === 'crop' && p.wateredAt == null) {
-          plots[p.index] = { ...p, wateredAt: now };
-          watered++;
-        }
-      }
-    }
-
-    // Daily watering XP cap.
-    const today = serverDate(now);
-    let dailyXp = garden.dailyWateringDate === today ? garden.dailyWateringXp : 0;
-    let awarded = 0;
-    if (dailyXp < DAILY_WATERING_XP_CAP) {
-      awarded = Math.min(XP_REWARDS.dailyWatering, DAILY_WATERING_XP_CAP - dailyXp);
-      dailyXp += awarded;
-    }
-
-    await tx.garden.update({
-      where: { playerId },
-      data: { plots: plotsForDb(plots), dailyWateringXp: dailyXp, dailyWateringDate: today },
-    });
-
-    let leveledUp = false;
-    if (awarded > 0) {
-      const before = levelFromXp(player.xp).level;
-      const newXp = player.xp + awarded;
-      const after = levelFromXp(newXp).level;
-      leveledUp = after > before;
-      await tx.player.update({ where: { id: playerId }, data: { xp: newXp, level: after } });
-    }
-
-    return { garden: gardenView(garden.gridSize, plots, activePet), xp: awarded, leveledUp };
-  });
-}
-
-// Pet auto-water counts (docs §03 pets table). mythic → whole garden.
-const PET_AUTOWATER: Record<ActivePet['tier'], number> = {
-  common: 0,
-  rare: 1,
-  epic: 4,
-  mythic: Number.MAX_SAFE_INTEGER,
-};
 
 /** POST /garden/harvest — delegates to the gacha pipeline. */
 export async function harvest(playerId: string, key: string, plotIndex: number) {

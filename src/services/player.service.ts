@@ -4,6 +4,7 @@ import { balanceOf } from '../lib/ledger.js';
 import { levelFromXp, type ActivePet } from '../game/index.js';
 import { STARTING_BLOOM, STARTING_GRID_SIZE, initialPlots, asPlots } from './garden.state.js';
 import { getActiveWeatherView } from './weather.service.js';
+import { getInventory } from './inventory.service.js';
 
 /** Create a player + initial garden + starting-balance ledger grant (one tx). */
 export async function createPlayerWithGarden(
@@ -72,11 +73,12 @@ export async function getLedgerPage(playerId: string, cursor?: string, take = 50
 
 /** Full `/me` snapshot: player, garden, pet, weather, balance. */
 export async function getMeSnapshot(playerId: string) {
-  const [player, garden, balance, weather] = await Promise.all([
+  const [player, garden, balance, weather, inventory] = await Promise.all([
     prisma.player.findUniqueOrThrow({ where: { id: playerId } }),
     prisma.garden.findUniqueOrThrow({ where: { playerId } }),
     balanceOf(playerId),
     getActiveWeatherView(),
+    getInventory(playerId),
   ]);
 
   return {
@@ -88,5 +90,6 @@ export async function getMeSnapshot(playerId: string) {
     },
     weather,
     balance,
+    inventory,
   };
 }
