@@ -44,40 +44,12 @@ export async function verifyAndLogin(pubkey: string, signature: string) {
 
   let player = await prisma.player.findUnique({ where: { walletPubkey: pubkey } });
   if (!player) {
-    player = await prisma.$transaction((tx) =>
-      createPlayerWithGarden(tx, { isGuest: false, walletPubkey: pubkey }),
-    );
+    player = await prisma.$transaction((tx) => createPlayerWithGarden(tx, { walletPubkey: pubkey }));
   } else {
     await prisma.player.update({ where: { id: player.id }, data: { lastSeenAt: new Date() } });
   }
 
   return { ...issueTokens(player.id, player.isGuest), player: toPlayerView(player) };
-}
-
-/** POST /auth/guest — anonymous player so the game is playable without a wallet. */
-export async function createGuest() {
-  const player = await prisma.$transaction((tx) => createPlayerWithGarden(tx, { isGuest: true }));
-  return { ...issueTokens(player.id, true), player: toPlayerView(player) };
-}
-
-/**
- * POST /auth/bind — attach a wallet to the current guest player.
- * Simple case only: the wallet must be unused. (Merging two existing economies
- * is intentionally out of scope; see plan open items.)
- */
-export async function bindWallet(guestPlayerId: string, pubkey: string, signature: string) {
-  await consumeAndVerify(pubkey, signature);
-
-  const existing = await prisma.player.findUnique({ where: { walletPubkey: pubkey } });
-  if (existing && existing.id !== guestPlayerId) {
-    throw new AppError('CONFLICT', 'This wallet is already linked to another account');
-  }
-
-  const player = await prisma.player.update({
-    where: { id: guestPlayerId },
-    data: { walletPubkey: pubkey, isGuest: false, lastSeenAt: new Date() },
-  });
-  return { ...issueTokens(player.id, false), player: toPlayerView(player) };
 }
 
 /** POST /auth/refresh — exchange a refresh token for a new access token. */

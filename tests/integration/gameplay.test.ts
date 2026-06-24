@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
+import nacl from 'tweetnacl';
+import bs58 from 'bs58';
 
 /**
  * DB-backed integration tests. Run with a DISPOSABLE Postgres:
@@ -35,14 +37,21 @@ describe.skipIf(!RUN)('gameplay (DB)', () => {
     );
   });
 
-  async function guest() {
-    const res = await request(app).post('/auth/guest');
-    return { token: res.body.accessToken as string, player: res.body.player };
+  // Sign in with a fresh wallet via SIWS (challenge → sign → verify).
+  async function signIn() {
+    const kp = nacl.sign.keyPair();
+    const pubkey = bs58.encode(kp.publicKey);
+    const ch = await request(app).get('/auth/challenge').query({ pubkey });
+    const signature = bs58.encode(
+      nacl.sign.detached(new TextEncoder().encode(ch.body.statement), kp.secretKey),
+    );
+    const res = await request(app).post('/auth/verify').send({ pubkey, signature });
+    return { token: res.body.accessToken as string, player: res.body.player, pubkey };
   }
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
 
-  it('guest sign-in grants the starting balance', async () => {
-    const { token } = await guest();
+  it('wallet sign-in grants the starting balance', async () => {
+    const { token } = await signIn();
     const me = await request(app).get('/me').set(auth(token));
     expect(me.status).toBe(200);
     expect(me.body.balance).toBe(START);
@@ -51,7 +60,7 @@ describe.skipIf(!RUN)('gameplay (DB)', () => {
   });
 
   it('plant debits cost and is idempotent on retry', async () => {
-    const { token } = await guest();
+    const { token } = await signIn();
     const key = 'plant-key-1';
     const body = { plotIndex: 0, cropId: 'carrot' };
 
@@ -70,7 +79,7 @@ describe.skipIf(!RUN)('gameplay (DB)', () => {
   });
 
   it('harvest value comes from the server, credits the ledger, clears the plot', async () => {
-    const { token, player } = await guest();
+    const { token, player } = await signIn();
     await request(app).post('/garden/plant').set(auth(token)).set('Idempotency-Key', 'p').send({ plotIndex: 0, cropId: 'carrot' });
 
     // Fast-forward growth by back-dating plantedAt past the scaled duration.
@@ -94,9 +103,9 @@ describe.skipIf(!RUN)('gameplay (DB)', () => {
   });
 
   it('a listing cannot be double-bought', async () => {
-    const seller = await guest();
-    const buyer1 = await guest();
-    const buyer2 = await guest();
+    const seller = await signIn();
+    const buyer1 = await signIn();
+    const buyer2 = await signIn();
 
     // Give the seller produce + the buyers funds directly.
     await prisma.inventory.create({

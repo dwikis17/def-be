@@ -9,11 +9,6 @@ export function splitSeedCost(cost: number): { burned: number; treasury: number 
   return { burned, treasury: cost - burned };
 }
 
-/** Sprinkler / pet purchase: 100% burned. */
-export function splitBurnAll(cost: number): { burned: number } {
-  return { burned: cost };
-}
-
 export type MarketplaceFees = {
   burn: number;
   reward: number;

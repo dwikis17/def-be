@@ -6,15 +6,15 @@ import { STARTING_BLOOM, STARTING_GRID_SIZE, initialPlots, asPlots } from './gar
 import { getActiveWeatherView } from './weather.service.js';
 import { getInventory } from './inventory.service.js';
 
-/** Create a player + initial garden + starting-balance ledger grant (one tx). */
+/** Create a wallet player + initial garden + starting-balance ledger grant (one tx). */
 export async function createPlayerWithGarden(
   tx: Tx,
-  opts: { isGuest: boolean; walletPubkey?: string; displayName?: string },
+  opts: { walletPubkey: string; displayName?: string },
 ): Promise<Player> {
   const player = await tx.player.create({
     data: {
-      isGuest: opts.isGuest,
-      walletPubkey: opts.walletPubkey ?? null,
+      isGuest: false,
+      walletPubkey: opts.walletPubkey,
       displayName: opts.displayName ?? null,
     },
   });
