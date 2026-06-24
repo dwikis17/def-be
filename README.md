@@ -130,9 +130,12 @@ src/
 ## Phase status
 
 Phases 0–11 are implemented; the schema is **migrated to Supabase** and the full
-suite (unit + DB integration) passes. Remaining items before mainnet:
+suite (unit + DB integration) passes. **Solana is live and verified on devnet:**
 
-- **Solana on-chain calls** — see Phase 11 below.
+- `$BLOOM` SPL mint: `DF1sxmwpczSkFTDXAtXihtDs2tZD8VLwTg3MgW5AXMxr`
+- cNFT Merkle tree: `CnymmD4Ye2dStyqjChstVjrjPVkE2cY4HaH2PPMHh11c`
+- Claim → SPL tokens land in the wallet ATA; rare harvests → Bubblegum cNFTs
+  (both confirmed on-chain). Move to a paid RPC + commit-reveal RNG before mainnet.
 - **Solana (Phase 11)** — chain worker handlers are scaffolded and config-gated;
   the real mint/transfer calls (web3.js + Bubblegum) fill the marked `TODO`s.
   Confirm `@solana/web3.js` v1 vs `@solana/kit` and the supply policy first.

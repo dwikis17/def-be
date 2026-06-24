@@ -24,6 +24,11 @@ walletRouter.post(
   },
 );
 
+walletRouter.post('/faucet', valueActionLimiter, requireIdempotency, async (req, res) => {
+  const player = getPlayer(req);
+  res.json(await wallet.faucet(player.id, req.idempotencyKey!));
+});
+
 const claimParams = z.object({ id: z.string().uuid() });
 walletRouter.get('/claim/:id', generalLimiter, validate({ params: claimParams }), async (req, res) => {
   const player = getPlayer(req);

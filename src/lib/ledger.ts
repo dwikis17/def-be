@@ -4,6 +4,7 @@ import { prisma, type Tx } from '../db/prisma.js';
 /** Ledger reason codes (docs §04). */
 export type LedgerReason =
   | 'signup_bonus'
+  | 'faucet'
   | 'plant_cost'
   | 'harvest'
   | 'market_buy'
