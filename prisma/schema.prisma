@@ -1,0 +1,256 @@
+// Bloom Garden — authoritative data model (docs §04).
+// Money lives in an APPEND-ONLY ledger; balance is SUM(ledger.amount), never a
+// mutable column. Every value action runs in one transaction with its ledger
+// rows + an idempotency record.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Player {
+  id           String   @id @default(uuid()) @db.Uuid
+  walletPubkey String?  @unique
+  isGuest      Boolean  @default(true)
+  displayName  String?
+  level        Int      @default(1)
+  xp           Int      @default(0)
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+
+  garden             Garden?
+  ledger             Ledger[]
+  harvestedItems     HarvestedItem[]
+  nfts               Nft[]
+  inventory          Inventory[]
+  listings           Listing[]
+  buys               Trade[]             @relation("buyer")
+  sells              Trade[]             @relation("seller")
+  claims             Claim[]
+  scores             LeaderboardScore[]
+  payouts            LeaderboardPayout[]
+  idempotencyRecords IdempotencyRecord[]
+
+  @@map("players")
+}
+
+model Garden {
+  playerId          String   @id @db.Uuid
+  player            Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  gridSize          Int      @default(2)
+  plots             Json // Plot[] from src/game/types.ts
+  activePet         Json? // ActivePet
+  dailyWateringXp   Int      @default(0)
+  dailyWateringDate String? // 'YYYY-MM-DD' (server date) — resets the cap
+  updatedAt         DateTime @updatedAt
+
+  @@map("gardens")
+}
+
+// Append-only money ledger. + credit / - debit. Never UPDATE/DELETE rows.
+model Ledger {
+  id             BigInt   @id @default(autoincrement())
+  playerId       String   @db.Uuid
+  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  amount         BigInt
+  reason         String // plant_cost, harvest, market_buy, market_sell_net, fee_*, leaderboard_payout, shop_buy, claim_*
+  refType        String?
+  refId          String?
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
+
+  @@unique([playerId, idempotencyKey])
+  @@index([playerId, id])
+  @@map("ledger")
+}
+
+// System sinks so totals are auditable sums, not counters.
+model TreasuryLedger {
+  id        BigInt   @id @default(autoincrement())
+  kind      String // 'burn' | 'reward_pool' | 'treasury'
+  amount    BigInt
+  ref       String?
+  createdAt DateTime @default(now())
+
+  @@index([kind])
+  @@map("treasury_ledger")
+}
+
+model HarvestedItem {
+  id            String   @id @default(uuid()) @db.Uuid
+  playerId      String   @db.Uuid
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  cropId        String
+  mutationKey   String // base tier or hybrid key
+  mutationLabel String
+  multiplier    Int
+  value         BigInt
+  weather       String?
+  plotPosition  Int
+  isNft         Boolean  @default(false)
+  harvestedAt   DateTime @default(now())
+
+  nft Nft?
+
+  @@index([playerId, harvestedAt])
+  @@map("harvested_items")
+}
+
+model Nft {
+  id              String        @id @default(uuid()) @db.Uuid
+  playerId        String        @db.Uuid
+  player          Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  harvestedItemId String        @unique @db.Uuid
+  harvestedItem   HarvestedItem @relation(fields: [harvestedItemId], references: [id], onDelete: Cascade)
+  cropId          String
+  mutationKey     String
+  mutationLabel   String
+  multiplier      Int
+  metadata        Json // Metaplex-format metadata
+  chainStatus     String        @default("pending") // 'pending' | 'minted' | 'failed'
+  assetId         String?
+  txSignature     String?
+  mintedAt        DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@index([playerId])
+  @@index([chainStatus])
+  @@map("nfts")
+}
+
+model Inventory {
+  id          String @id @default(uuid()) @db.Uuid
+  playerId    String @db.Uuid
+  player      Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  kind        String // 'seed' | 'sprinkler' | 'pet' | 'harvest'
+  itemId      String // cropId / sprinklerTier / petTier
+  mutationKey String @default("") // '' for non-harvest items (keeps the unique key total)
+  quantity    Int    @default(0)
+
+  @@unique([playerId, kind, itemId, mutationKey])
+  @@index([playerId])
+  @@map("inventory")
+}
+
+model Listing {
+  id           String   @id @default(uuid()) @db.Uuid
+  sellerId     String   @db.Uuid
+  seller       Player   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  cropId       String?
+  mutationKey  String?
+  quantity     Int      @default(1)
+  pricePerUnit BigInt
+  nftId        String?  @db.Uuid
+  status       String   @default("active") // 'active' | 'sold' | 'cancelled'
+  listedAt     DateTime @default(now())
+
+  trades Trade[]
+
+  @@index([status, listedAt])
+  @@index([cropId, mutationKey])
+  @@index([nftId, status])
+  @@map("listings")
+}
+
+model Trade {
+  id          String   @id @default(uuid()) @db.Uuid
+  listingId   String   @db.Uuid
+  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyerId     String   @db.Uuid
+  buyer       Player   @relation("buyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId    String   @db.Uuid
+  seller      Player   @relation("seller", fields: [sellerId], references: [id], onDelete: Cascade)
+  cropId      String?
+  mutationKey String?
+  nftId       String?  @db.Uuid
+  price       BigInt
+  feeBurn     BigInt
+  feeReward   BigInt
+  feeTreasury BigInt
+  tradedAt    DateTime @default(now())
+
+  @@index([buyerId, tradedAt])
+  @@index([sellerId, tradedAt])
+  @@map("trades")
+}
+
+// One active row = the latest. 'clear' represents no active event.
+model Weather {
+  id        BigInt   @id @default(autoincrement())
+  event     String
+  startedAt DateTime @default(now())
+  endsAt    DateTime
+
+  @@index([endsAt])
+  @@map("weather")
+}
+
+model LeaderboardScore {
+  playerId  String @db.Uuid
+  player    Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  weekStart String // 'YYYY-MM-DD' (Monday of the score week)
+  board     String // 'harvestValue' | 'mutationHunter'
+  score     BigInt @default(0)
+
+  @@id([playerId, weekStart, board])
+  @@index([weekStart, board, score])
+  @@map("leaderboard_scores")
+}
+
+model LeaderboardPayout {
+  id        String   @id @default(uuid()) @db.Uuid
+  weekStart String
+  board     String
+  playerId  String   @db.Uuid
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  rank      Int
+  amount    BigInt
+  createdAt DateTime @default(now())
+
+  @@index([weekStart, board])
+  @@map("leaderboard_payouts")
+}
+
+model Claim {
+  id          String    @id @default(uuid()) @db.Uuid
+  playerId    String    @db.Uuid
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  amount      BigInt
+  status      String    @default("pending") // 'pending' | 'settled' | 'failed'
+  txSignature String?
+  createdAt   DateTime  @default(now())
+  settledAt   DateTime?
+
+  @@index([playerId, createdAt])
+  @@index([status])
+  @@map("claims")
+}
+
+model AuthNonce {
+  nonce     String   @id
+  pubkey    String
+  statement String
+  expiresAt DateTime
+
+  @@index([pubkey])
+  @@index([expiresAt])
+  @@map("auth_nonces")
+}
+
+// Stores the full response for value actions so retries with the same
+// Idempotency-Key return the identical result (e.g. the same harvest roll).
+model IdempotencyRecord {
+  playerId  String   @db.Uuid
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  key       String
+  response  Json
+  createdAt DateTime @default(now())
+
+  @@id([playerId, key])
+  @@map("idempotency_records")
+}

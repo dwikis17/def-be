@@ -1,0 +1,345 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`canonical constants snapshot > crops 1`] = `
+{
+  "carrot": {
+    "baseHarvest": 40,
+    "growthDurationMs": 3600000,
+    "id": "carrot",
+    "label": "Carrot",
+    "levelRequired": 1,
+    "mutationModifier": 1,
+    "seedCost": 50,
+  },
+  "dragonfruit": {
+    "baseHarvest": 850,
+    "growthDurationMs": 57600000,
+    "id": "dragonfruit",
+    "label": "Dragon Fruit",
+    "levelRequired": 18,
+    "mutationModifier": 1.5,
+    "seedCost": 1000,
+  },
+  "ghostpepper": {
+    "baseHarvest": 2200,
+    "growthDurationMs": 86400000,
+    "id": "ghostpepper",
+    "label": "Ghost Pepper",
+    "levelRequired": 28,
+    "mutationModifier": 1.8,
+    "seedCost": 2500,
+  },
+  "potato": {
+    "baseHarvest": 45,
+    "growthDurationMs": 5400000,
+    "id": "potato",
+    "label": "Potato",
+    "levelRequired": 1,
+    "mutationModifier": 1,
+    "seedCost": 50,
+  },
+  "pumpkin": {
+    "baseHarvest": 450,
+    "growthDurationMs": 43200000,
+    "id": "pumpkin",
+    "label": "Pumpkin",
+    "levelRequired": 12,
+    "mutationModifier": 1.25,
+    "seedCost": 500,
+  },
+  "starfruit": {
+    "baseHarvest": 1300,
+    "growthDurationMs": 72000000,
+    "id": "starfruit",
+    "label": "Star Fruit",
+    "levelRequired": 22,
+    "mutationModifier": 1.6,
+    "seedCost": 1500,
+  },
+  "strawberry": {
+    "baseHarvest": 170,
+    "growthDurationMs": 14400000,
+    "id": "strawberry",
+    "label": "Strawberry",
+    "levelRequired": 5,
+    "mutationModifier": 1.15,
+    "seedCost": 200,
+  },
+  "tomato": {
+    "baseHarvest": 65,
+    "growthDurationMs": 7200000,
+    "id": "tomato",
+    "label": "Tomato",
+    "levelRequired": 1,
+    "mutationModifier": 1.05,
+    "seedCost": 75,
+  },
+  "watermelon": {
+    "baseHarvest": 310,
+    "growthDurationMs": 28800000,
+    "id": "watermelon",
+    "label": "Watermelon",
+    "levelRequired": 8,
+    "mutationModifier": 1.2,
+    "seedCost": 350,
+  },
+}
+`;
+
+exports[`canonical constants snapshot > grid expansions 1`] = `
+[
+  {
+    "cost": 0,
+    "gridSize": 2,
+    "levelRequired": 1,
+  },
+  {
+    "cost": 500,
+    "gridSize": 3,
+    "levelRequired": 5,
+  },
+  {
+    "cost": 1500,
+    "gridSize": 4,
+    "levelRequired": 10,
+  },
+  {
+    "cost": 3000,
+    "gridSize": 5,
+    "levelRequired": 18,
+  },
+  {
+    "cost": 5000,
+    "gridSize": 6,
+    "levelRequired": 25,
+  },
+]
+`;
+
+exports[`canonical constants snapshot > mutations 1`] = `
+{
+  "common": {
+    "baseChance": 1,
+    "isNFT": false,
+    "label": "Common",
+    "multiplier": 1,
+    "rarity": "common",
+    "tier": "common",
+  },
+  "crystal": {
+    "baseChance": 0.001,
+    "isNFT": true,
+    "label": "Crystal",
+    "multiplier": 50,
+    "rarity": "legendary",
+    "tier": "crystal",
+  },
+  "dawnbound": {
+    "baseChance": 0.00005,
+    "isNFT": true,
+    "label": "Dawnbound",
+    "multiplier": 150,
+    "rarity": "mythic",
+    "tier": "dawnbound",
+  },
+  "diamond": {
+    "baseChance": 0.0002,
+    "isNFT": true,
+    "label": "Diamond",
+    "multiplier": 100,
+    "rarity": "legendary",
+    "tier": "diamond",
+  },
+  "frozen": {
+    "baseChance": 0.05,
+    "isNFT": false,
+    "label": "Frozen",
+    "multiplier": 5,
+    "rarity": "rare",
+    "tier": "frozen",
+  },
+  "gold": {
+    "baseChance": 0.005,
+    "isNFT": true,
+    "label": "Gold",
+    "multiplier": 20,
+    "rarity": "epic",
+    "tier": "gold",
+  },
+  "shocked": {
+    "baseChance": 0.015,
+    "isNFT": true,
+    "label": "Shocked",
+    "multiplier": 10,
+    "rarity": "epic",
+    "tier": "shocked",
+  },
+  "wet": {
+    "baseChance": 0.15,
+    "isNFT": false,
+    "label": "Wet",
+    "multiplier": 2,
+    "rarity": "uncommon",
+    "tier": "wet",
+  },
+}
+`;
+
+exports[`canonical constants snapshot > pets 1`] = `
+{
+  "common": {
+    "autoWater": 0,
+    "cost": 0,
+    "freeReroll": false,
+    "label": "Garden Cat",
+    "levelRequired": 2,
+    "mutationBonus": 0.05,
+    "tier": "common",
+    "weatherAlert": false,
+  },
+  "epic": {
+    "autoWater": 4,
+    "cost": 25000,
+    "freeReroll": false,
+    "label": "Storm Owl",
+    "levelRequired": 12,
+    "mutationBonus": 0.25,
+    "tier": "epic",
+    "weatherAlert": true,
+  },
+  "mythic": {
+    "autoWater": Infinity,
+    "cost": 100000,
+    "freeReroll": true,
+    "label": "Dawn Phoenix",
+    "levelRequired": 20,
+    "mutationBonus": 0.4,
+    "tier": "mythic",
+    "weatherAlert": true,
+  },
+  "rare": {
+    "autoWater": 1,
+    "cost": 5000,
+    "freeReroll": false,
+    "label": "Water Sprite",
+    "levelRequired": 5,
+    "mutationBonus": 0.15,
+    "tier": "rare",
+    "weatherAlert": false,
+  },
+}
+`;
+
+exports[`canonical constants snapshot > sprinklers 1`] = `
+{
+  "advanced": {
+    "cost": 2500,
+    "coverageRadius": 2,
+    "label": "Advanced Sprinkler",
+    "levelRequired": 10,
+    "mutationBonus": 0.25,
+    "tier": "advanced",
+  },
+  "basic": {
+    "cost": 500,
+    "coverageRadius": 1,
+    "label": "Basic Sprinkler",
+    "levelRequired": 3,
+    "mutationBonus": 0.1,
+    "tier": "basic",
+  },
+  "godly": {
+    "cost": 50000,
+    "coverageRadius": Infinity,
+    "label": "Godly Sprinkler",
+    "levelRequired": 25,
+    "mutationBonus": 0.6,
+    "tier": "godly",
+  },
+  "master": {
+    "cost": 10000,
+    "coverageRadius": 3,
+    "label": "Master Sprinkler",
+    "levelRequired": 18,
+    "mutationBonus": 0.4,
+    "tier": "master",
+  },
+}
+`;
+
+exports[`canonical constants snapshot > weather 1`] = `
+{
+  "aurora": {
+    "bonusTiers": {
+      "dawnbound": 5,
+    },
+    "durationMs": 600000,
+    "id": "aurora",
+    "label": "Aurora",
+    "mutationMultiplier": 5,
+    "weight": 0.08,
+  },
+  "frost": {
+    "bonusTiers": {
+      "frozen": 0.75,
+    },
+    "durationMs": 5400000,
+    "id": "frost",
+    "label": "Frost",
+    "mutationMultiplier": 1.75,
+    "weight": 1.5,
+  },
+  "meteor_shower": {
+    "bonusTiers": {
+      "crystal": 2,
+      "diamond": 2,
+    },
+    "durationMs": 900000,
+    "id": "meteor_shower",
+    "label": "Meteor Shower",
+    "mutationMultiplier": 2.5,
+    "weight": 0.25,
+  },
+  "rain": {
+    "bonusTiers": {
+      "wet": 0.5,
+    },
+    "durationMs": 7200000,
+    "id": "rain",
+    "label": "Rain",
+    "mutationMultiplier": 1.5,
+    "weight": 2.5,
+  },
+  "solar_flare": {
+    "bonusTiers": {
+      "gold": 1.5,
+    },
+    "durationMs": 1800000,
+    "id": "solar_flare",
+    "label": "Solar Flare",
+    "mutationMultiplier": 3,
+    "weight": 0.5,
+  },
+  "thunderstorm": {
+    "bonusTiers": {
+      "shocked": 1,
+    },
+    "durationMs": 3600000,
+    "id": "thunderstorm",
+    "label": "Thunderstorm",
+    "mutationMultiplier": 2,
+    "weight": 1,
+  },
+}
+`;
+
+exports[`canonical constants snapshot > xp rewards 1`] = `
+{
+  "dailyWatering": 20,
+  "harvest": 5,
+  "harvestEpicPlus": 50,
+  "harvestLegendaryPlus": 200,
+  "harvestWithMutation": 15,
+  "marketSell": 10,
+}
+`;
