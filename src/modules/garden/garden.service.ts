@@ -10,7 +10,10 @@ import {
   isSprinklerTier,
   splitSeedCost,
   levelFromXp,
+  rollMutation,
+  petMutationBonus,
   type ActivePet,
+  type MutationContext,
   type Plot,
   type SprinklerTier,
 } from '../../game/index.js';
@@ -20,8 +23,10 @@ import {
   gardenView,
   lockGarden,
   plotsForDb,
+  sprinklerCoverageBonus,
 } from '../../services/garden.state.js';
 import { performHarvest } from '../../services/harvest.service.js';
+import { weatherContext } from '../../services/weather.service.js';
 
 function getPlotInRange(plots: Plot[], index: number): Plot {
   const plot = plots[index];
@@ -58,11 +63,23 @@ export async function plant(playerId: string, key: string, plotIndex: number, cr
       { kind: 'treasury', amount: BigInt(treasury), ref: 'plant' },
     ]);
 
+    // Decide the mutation tier NOW (at plant), server-authoritative, from the
+    // same context the gacha uses. It is persisted on the plot and revealed by
+    // the client only once the crop is ripe. Idempotency makes the roll stable
+    // across retries. Plant-time weather/sprinkler/pet apply (not harvest-time).
+    const activePet = (garden.activePet as ActivePet | null) ?? null;
+    const ctx: MutationContext = {
+      cropMutationModifier: crop.mutationModifier,
+      sprinklerBonus: sprinklerCoverageBonus(plots, plotIndex, garden.gridSize),
+      petBonus: activePet ? petMutationBonus(activePet.tier, activePet.level) : 0,
+      ...(await weatherContext(tx)),
+    };
+    const mutationTier = 'shocked'
+
     // Crops grow on their own from plantedAt — there is no watering.
-    plots[plotIndex] = { index: plotIndex, type: 'crop', cropId, plantedAt: Date.now() };
+    plots[plotIndex] = { index: plotIndex, type: 'crop', cropId, plantedAt: Date.now(), mutationTier };
     await tx.garden.update({ where: { playerId }, data: { plots: plotsForDb(plots) } });
 
-    const activePet = (garden.activePet as ActivePet | null) ?? null;
     return { garden: gardenView(garden.gridSize, plots, activePet), balance: balance - cost };
   });
 }

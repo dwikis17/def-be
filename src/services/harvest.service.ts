@@ -107,8 +107,11 @@ export async function performHarvest(
     ...(await weatherContext(tx)),
   };
 
-  // Roll: hybrid (if an adjacent pair breeds) overrides the normal roll.
-  const rolledTier = rollMutation(ctx, rng);
+  // Base tier was decided + persisted at PLANT time (server-authoritative). Use
+  // it as-is; only fall back to rolling now for legacy crops planted before the
+  // decide-at-plant change (no stored tier). Hybrid breeding still resolves at
+  // harvest, since it depends on the neighbours present at harvest time.
+  const rolledTier = plot.mutationTier ?? rollMutation(ctx, rng);
   const hybrid = checkHybridBreeding({
     plotIndex,
     plots,

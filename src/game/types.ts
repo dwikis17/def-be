@@ -53,7 +53,8 @@ export type Plot = {
   cropId?: CropId;
   /** When the seed was planted (server clock) — growth is measured from here. */
   plantedAt?: number;
-  /** Tier rolled at harvest; transient (set just before clearing the plot). */
+  /** Base mutation tier, rolled + persisted at PLANT time (server-authoritative).
+   *  Sent to the client, which reveals it only once the crop is ripe. */
   mutationTier?: MutationTier;
   /** Present when type === 'sprinkler'. */
   sprinklerId?: SprinklerTier;
