@@ -37,8 +37,9 @@ describe.skipIf(!RUN)('gameplay (DB)', () => {
     );
   });
 
-  // Sign in with a fresh wallet via SIWS (challenge → sign → verify).
-  async function signIn() {
+  // Sign in with a fresh wallet via SIWS (challenge → sign → verify). Sign-up no
+  // longer grants a balance, so fund the player directly for tests that need it.
+  async function signIn(fund = START) {
     const kp = nacl.sign.keyPair();
     const pubkey = bs58.encode(kp.publicKey);
     const ch = await request(app).get('/auth/challenge').query({ pubkey });
@@ -46,15 +47,19 @@ describe.skipIf(!RUN)('gameplay (DB)', () => {
       nacl.sign.detached(new TextEncoder().encode(ch.body.statement), kp.secretKey),
     );
     const res = await request(app).post('/auth/verify').send({ pubkey, signature });
-    return { token: res.body.accessToken as string, player: res.body.player, pubkey };
+    const player = res.body.player;
+    if (fund > 0) {
+      await prisma.ledger.create({ data: { playerId: player.id, amount: BigInt(fund), reason: 'faucet' } });
+    }
+    return { token: res.body.accessToken as string, player, pubkey };
   }
   const auth = (t: string) => ({ Authorization: `Bearer ${t}` });
 
-  it('wallet sign-in grants the starting balance', async () => {
-    const { token } = await signIn();
+  it('wallet sign-in starts with zero balance and an empty garden', async () => {
+    const { token } = await signIn(0);
     const me = await request(app).get('/me').set(auth(token));
     expect(me.status).toBe(200);
-    expect(me.body.balance).toBe(START);
+    expect(me.body.balance).toBe(0);
     expect(me.body.garden.gridSize).toBe(3);
     expect(me.body.garden.plots).toHaveLength(9);
   });

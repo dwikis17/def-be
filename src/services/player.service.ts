@@ -2,11 +2,11 @@ import type { Player } from '@prisma/client';
 import { prisma, type Tx } from '../db/prisma.js';
 import { balanceOf } from '../lib/ledger.js';
 import { levelFromXp, type ActivePet } from '../game/index.js';
-import { STARTING_BLOOM, STARTING_GRID_SIZE, initialPlots, asPlots } from './garden.state.js';
+import { STARTING_GRID_SIZE, initialPlots, asPlots } from './garden.state.js';
 import { getActiveWeatherView } from './weather.service.js';
 import { getInventory } from './inventory.service.js';
 
-/** Create a wallet player + initial garden + starting-balance ledger grant (one tx). */
+/** Create a wallet player + initial garden (one tx). New players start with 0 $BLOOM. */
 export async function createPlayerWithGarden(
   tx: Tx,
   opts: { walletPubkey: string; displayName?: string },
@@ -24,9 +24,6 @@ export async function createPlayerWithGarden(
       gridSize: STARTING_GRID_SIZE,
       plots: initialPlots(STARTING_GRID_SIZE) as object[],
     },
-  });
-  await tx.ledger.create({
-    data: { playerId: player.id, amount: STARTING_BLOOM, reason: 'signup_bonus' },
   });
   return player;
 }
