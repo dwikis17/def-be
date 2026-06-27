@@ -1,7 +1,6 @@
 import type { Tx } from '../db/prisma.js';
 import { env } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
-import { balanceOf } from '../lib/ledger.js';
 import {
   CROPS,
   canHarvest,
@@ -11,26 +10,16 @@ import {
   harvestValue,
   harvestXp,
   levelFromXp,
-  petMutationBonus,
-  type ActivePet,
   type MutationContext,
   type MutationResult,
   type Plot,
   type Rng,
   serverRng,
 } from '../game/index.js';
-import {
-  asPlots,
-  emptyPlot,
-  gardenView,
-  lockGarden,
-  plotsForDb,
-  sprinklerCoverageBonus,
-} from './garden.state.js';
+import { asPlots, emptyPlot, gardenView, lockGarden, plotsForDb } from './garden.state.js';
 import { weatherContext, activeWeatherLabel } from './weather.service.js';
 import { addScore, mutationHunterPoints, weekStartOf } from './leaderboard.service.js';
 import { enqueueCnftMint } from './chain.queue.js';
-import { depositProduce } from './inventory.service.js';
 
 /** Metaplex-style metadata for a rare-harvest cNFT (docs §05). */
 function buildNftMetadata(cropId: string, result: MutationResult, weather: string | null) {
@@ -49,23 +38,13 @@ function buildNftMetadata(cropId: string, result: MutationResult, weather: strin
   };
 }
 
-export type HarvestProduce = {
-  cropId: string;
-  mutationKey: string;
-  label: string;
-  unitValue: number;
-};
-
 export type HarvestOutcome = {
   result: MutationResult;
-  /** Produce deposited to inventory (non-NFT tiers); null for cNFT harvests. */
-  produce: HarvestProduce | null;
   value: bigint; // the item's worth (floor(base × multiplier)) — for display/leaderboard
   xp: number;
   level: number;
   leveledUp: boolean;
   nftPending: boolean;
-  balance: bigint; // unchanged at harvest (no $BLOOM credited)
   garden: ReturnType<typeof gardenView>;
 };
 
@@ -98,12 +77,9 @@ export async function performHarvest(
     throw new AppError('NOT_READY', 'Crop is not fully grown yet');
   }
 
-  // Build the mutation context from authoritative server state.
-  const activePet = (garden.activePet as ActivePet | null) ?? null;
+  // Build the mutation context from authoritative server state (weather only).
   const ctx: MutationContext = {
     cropMutationModifier: crop.mutationModifier,
-    sprinklerBonus: sprinklerCoverageBonus(plots, plotIndex, garden.gridSize),
-    petBonus: activePet ? petMutationBonus(activePet.tier, activePet.level) : 0,
     ...(await weatherContext(tx)),
   };
 
@@ -154,10 +130,9 @@ export async function performHarvest(
   await addScore(tx, playerId, 'harvestValue', value, week);
   await addScore(tx, playerId, 'mutationHunter', BigInt(mutationHunterPoints(result)), week);
 
-  // Reward: rare tiers (isNFT) mint a cNFT collectible; everything else becomes
-  // fungible produce in the inventory (sold later for $BLOOM). No instant $BLOOM.
+  // Reward: rare tiers (isNFT) mint a cNFT collectible (sold on-chain later).
+  // Common + mid tiers (Wet/Frozen) give EXP only — no in-game currency.
   let nftPending = false;
-  let produce: HarvestProduce | null = null;
   if (result.isNFT) {
     const nft = await tx.nft.create({
       data: {
@@ -173,30 +148,19 @@ export async function performHarvest(
     });
     await enqueueCnftMint({ nftId: nft.id });
     nftPending = true;
-  } else {
-    await depositProduce(tx, playerId, plot.cropId, rolledTier, 1);
-    produce = {
-      cropId: plot.cropId,
-      mutationKey: String(result.key),
-      label: result.label,
-      unitValue: Number(value),
-    };
   }
 
   // Clear the plot.
   plots[plotIndex] = emptyPlot(plotIndex);
   await tx.garden.update({ where: { playerId }, data: { plots: plotsForDb(plots) } });
 
-  const balance = await balanceOf(playerId, tx);
   return {
     result,
-    produce,
     value,
     xp,
     level: after,
     leveledUp: after > before,
     nftPending,
-    balance,
-    garden: gardenView(garden.gridSize, plots, activePet),
+    garden: gardenView(garden.gridSize, plots),
   };
 }

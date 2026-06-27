@@ -1,7 +1,5 @@
-import type { CropId, MutationResult, PetTier, SprinklerTier } from './types.js';
+import type { CropId, MutationResult } from './types.js';
 import { CROPS } from './crops.js';
-import { SPRINKLERS } from './sprinklers.js';
-import { PETS } from './pets.js';
 
 /** XP required to clear a given level — docs §03: getXpForLevel(L) = L * 100. */
 export function getXpForLevel(level: number): number {
@@ -54,10 +52,4 @@ export function harvestXp(result: MutationResult): number {
 // ── Unlock gates ─────────────────────────────────────────────────────────────
 export function canPlantCrop(level: number, cropId: CropId): boolean {
   return level >= CROPS[cropId].levelRequired;
-}
-export function canBuySprinkler(level: number, tier: SprinklerTier): boolean {
-  return level >= SPRINKLERS[tier].levelRequired;
-}
-export function canBuyPet(level: number, tier: PetTier): boolean {
-  return level >= PETS[tier].levelRequired;
 }

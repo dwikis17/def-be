@@ -16,7 +16,7 @@ export const QUEUES = {
   leaderboardRollover: 'leaderboard-rollover',
   reconcile: 'reconcile',
   cnftMint: 'cnft_mint',
-  claimTransfer: 'claim_transfer',
+  purchaseVerify: 'purchase_verify',
 } as const;
 
 export async function startJobQueue(): Promise<PgBoss> {

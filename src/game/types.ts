@@ -30,8 +30,6 @@ export type HybridTier = 'frostbolt' | 'gilded_crystal' | 'prismatic_diamond' | 
 /** Coarse rarity bucket used for XP rewards and Epic+ gating. */
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
 
-export type SprinklerTier = 'basic' | 'advanced' | 'master' | 'godly';
-export type PetTier = 'common' | 'rare' | 'epic' | 'mythic';
 export type WeatherId =
   | 'rain'
   | 'thunderstorm'
@@ -49,15 +47,13 @@ export type GrowthStage = 0 | 1 | 2 | 3;
  */
 export type Plot = {
   index: number;
-  type: 'empty' | 'crop' | 'sprinkler';
+  type: 'empty' | 'crop';
   cropId?: CropId;
   /** When the seed was planted (server clock) — growth is measured from here. */
   plantedAt?: number;
   /** Base mutation tier, rolled + persisted at PLANT time (server-authoritative).
    *  Sent to the client, which reveals it only once the crop is ripe. */
   mutationTier?: MutationTier;
-  /** Present when type === 'sprinkler'. */
-  sprinklerId?: SprinklerTier;
 };
 
 /** A fully-resolved mutation outcome (normal roll or hybrid). */
@@ -70,12 +66,6 @@ export type MutationResult = {
   /** Whether this outcome mints a compressed NFT (Shocked+ or any hybrid). */
   isNFT: boolean;
   isHybrid: boolean;
-};
-
-/** Active pet snapshot stored on the garden (gardens.active_pet JSONB). */
-export type ActivePet = {
-  tier: PetTier;
-  level: number;
 };
 
 export function clamp(value: number, min: number, max: number): number {

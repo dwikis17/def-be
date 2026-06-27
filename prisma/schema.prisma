@@ -34,6 +34,7 @@ model Player {
   claims             Claim[]
   scores             LeaderboardScore[]
   payouts            LeaderboardPayout[]
+  purchases          Purchase[]
   idempotencyRecords IdempotencyRecord[]
 
   @@map("players")
@@ -214,6 +215,29 @@ model LeaderboardPayout {
 
   @@index([weekStart, board])
   @@map("leaderboard_payouts")
+}
+
+// On-chain purchase (buy-to-play). The player signs an SPL $BLOOM transfer to
+// the treasury vault on-chain; the backend VERIFIES the tx then grants the item
+// (seeds → inventory, or grid expansion). No in-game balance is held. The unique
+// txSignature is the anti-double-grant guard; settlement is idempotent by row.
+model Purchase {
+  id          String    @id @default(uuid()) @db.Uuid
+  playerId    String    @db.Uuid
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  kind        String // 'seed' | 'expand'
+  itemId      String // seed: cropId ; expand: target gridSize (as string)
+  quantity    Int       @default(1) // seed qty ; 1 for expand
+  amount      BigInt // EXPECTED on-chain base units = uiAmount * 10^9 (server-derived, never client-supplied)
+  status      String    @default("pending") // 'pending' | 'settled' | 'failed' | 'expired'
+  reference   String    @unique // Solana Pay reference pubkey — lets the backend FIND the tx on-chain even if the client never reports it back
+  txSignature String?   @unique // known once the client submits it or reconcile discovers it by reference
+  createdAt   DateTime  @default(now())
+  settledAt   DateTime?
+
+  @@index([playerId, createdAt])
+  @@index([status])
+  @@map("purchases")
 }
 
 model Claim {

@@ -1,9 +1,9 @@
 import { prisma } from '../src/db/prisma.js';
-import { initialPlots, STARTING_BLOOM, STARTING_GRID_SIZE } from '../src/services/garden.state.js';
+import { initialPlots, STARTING_GRID_SIZE } from '../src/services/garden.state.js';
 
 /**
- * Optional dev seed: a demo guest player with a starting balance. Run with
- * `npm run db:seed` against a dev database.
+ * Optional dev seed: a demo guest player + garden. Buy-to-play, so no starting
+ * balance — seeds are bought on-chain. Run with `npm run db:seed` against a dev DB.
  */
 async function main() {
   const player = await prisma.player.create({
@@ -15,9 +15,6 @@ async function main() {
       gridSize: STARTING_GRID_SIZE,
       plots: initialPlots(STARTING_GRID_SIZE) as object[],
     },
-  });
-  await prisma.ledger.create({
-    data: { playerId: player.id, amount: STARTING_BLOOM, reason: 'signup_bonus' },
   });
   console.log(`Seeded demo player ${player.id}`);
 }

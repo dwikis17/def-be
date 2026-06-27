@@ -1,30 +1,14 @@
 import { AppError, Err } from '../../lib/errors.js';
 import { withIdempotency } from '../../lib/idempotency.js';
-import { balanceOf, writeLedger, writeTreasury } from '../../lib/ledger.js';
 import {
   CROPS,
-  SPRINKLERS,
-  GRID_EXPANSIONS,
-  MAX_GRID_SIZE,
   isCropId,
-  isSprinklerTier,
-  splitSeedCost,
   levelFromXp,
   rollMutation,
-  petMutationBonus,
-  type ActivePet,
   type MutationContext,
   type Plot,
-  type SprinklerTier,
 } from '../../game/index.js';
-import {
-  asPlots,
-  expandPlots,
-  gardenView,
-  lockGarden,
-  plotsForDb,
-  sprinklerCoverageBonus,
-} from '../../services/garden.state.js';
+import { asPlots, gardenView, lockGarden, plotsForDb } from '../../services/garden.state.js';
 import { performHarvest } from '../../services/harvest.service.js';
 import { weatherContext } from '../../services/weather.service.js';
 
@@ -34,7 +18,7 @@ function getPlotInRange(plots: Plot[], index: number): Plot {
   return plot;
 }
 
-/** POST /garden/plant */
+/** POST /garden/plant — consume one owned seed and plant it. No in-game currency. */
 export async function plant(playerId: string, key: string, plotIndex: number, cropId: string) {
   if (!isCropId(cropId)) throw Err.validation('Unknown crop');
   return withIdempotency(playerId, key, async (tx) => {
@@ -50,115 +34,35 @@ export async function plant(playerId: string, key: string, plotIndex: number, cr
     const crop = CROPS[cropId];
     if (levelFromXp(player.xp).level < crop.levelRequired) throw Err.notUnlocked(`${crop.label} locked`);
 
-    const cost = BigInt(crop.seedCost);
-    const balance = await balanceOf(playerId, tx);
-    if (balance < cost) throw Err.insufficientBalance();
+    // Consume one seed from inventory (bought on-chain via /purchase/seed).
+    const seed = await tx.inventory.findUnique({
+      where: {
+        playerId_kind_itemId_mutationKey: { playerId, kind: 'seed', itemId: cropId, mutationKey: '' },
+      },
+    });
+    if (!seed || seed.quantity < 1) {
+      throw new AppError('CONFLICT', `You have no ${crop.label} seeds — buy some in the shop`);
+    }
+    await tx.inventory.update({ where: { id: seed.id }, data: { quantity: { decrement: 1 } } });
 
-    const { burned, treasury } = splitSeedCost(crop.seedCost);
-    await writeLedger(tx, [
-      { playerId, amount: -cost, reason: 'plant_cost', refType: 'crop', refId: cropId },
-    ]);
-    await writeTreasury(tx, [
-      { kind: 'burn', amount: BigInt(burned), ref: 'plant' },
-      { kind: 'treasury', amount: BigInt(treasury), ref: 'plant' },
-    ]);
-
-    // Decide the mutation tier NOW (at plant), server-authoritative, from the
-    // same context the gacha uses. It is persisted on the plot and revealed by
-    // the client only once the crop is ripe. Idempotency makes the roll stable
-    // across retries. Plant-time weather/sprinkler/pet apply (not harvest-time).
-    const activePet = (garden.activePet as ActivePet | null) ?? null;
+    // Decide the mutation tier NOW (at plant), server-authoritative, from the same
+    // context the gacha uses. It is persisted on the plot and revealed by the client
+    // only once the crop is ripe. Idempotency makes the roll stable across retries.
     const ctx: MutationContext = {
       cropMutationModifier: crop.mutationModifier,
-      sprinklerBonus: sprinklerCoverageBonus(plots, plotIndex, garden.gridSize),
-      petBonus: activePet ? petMutationBonus(activePet.tier, activePet.level) : 0,
       ...(await weatherContext(tx)),
     };
-    const mutationTier = 'shocked'
+    const mutationTier = rollMutation(ctx);
 
     // Crops grow on their own from plantedAt — there is no watering.
     plots[plotIndex] = { index: plotIndex, type: 'crop', cropId, plantedAt: Date.now(), mutationTier };
     await tx.garden.update({ where: { playerId }, data: { plots: plotsForDb(plots) } });
 
-    return { garden: gardenView(garden.gridSize, plots, activePet), balance: balance - cost };
+    return { garden: gardenView(garden.gridSize, plots) };
   });
 }
 
 /** POST /garden/harvest — delegates to the gacha pipeline. */
 export async function harvest(playerId: string, key: string, plotIndex: number) {
   return withIdempotency(playerId, key, (tx) => performHarvest(tx, playerId, plotIndex));
-}
-
-/** POST /garden/sprinkler — place a sprinkler (100% burned). */
-export async function placeSprinkler(
-  playerId: string,
-  key: string,
-  plotIndex: number,
-  sprinklerId: string,
-) {
-  if (!isSprinklerTier(sprinklerId)) throw Err.validation('Unknown sprinkler');
-  return withIdempotency(playerId, key, async (tx) => {
-    await lockGarden(tx, playerId);
-    const [garden, player] = await Promise.all([
-      tx.garden.findUniqueOrThrow({ where: { playerId } }),
-      tx.player.findUniqueOrThrow({ where: { id: playerId } }),
-    ]);
-    const plots = asPlots(garden.plots);
-    const plot = getPlotInRange(plots, plotIndex);
-    if (plot.type !== 'empty') throw new AppError('PLOT_OCCUPIED', 'Plot is not empty');
-
-    const def = SPRINKLERS[sprinklerId as SprinklerTier];
-    if (levelFromXp(player.xp).level < def.levelRequired) throw Err.notUnlocked(`${def.label} locked`);
-
-    const cost = BigInt(def.cost);
-    const balance = await balanceOf(playerId, tx);
-    if (balance < cost) throw Err.insufficientBalance();
-
-    await writeLedger(tx, [
-      { playerId, amount: -cost, reason: 'sprinkler_cost', refType: 'sprinkler', refId: sprinklerId },
-    ]);
-    await writeTreasury(tx, [{ kind: 'burn', amount: cost, ref: 'sprinkler' }]);
-
-    plots[plotIndex] = { index: plotIndex, type: 'sprinkler', sprinklerId: sprinklerId as SprinklerTier };
-    await tx.garden.update({ where: { playerId }, data: { plots: plotsForDb(plots) } });
-
-    const activePet = (garden.activePet as ActivePet | null) ?? null;
-    return { garden: gardenView(garden.gridSize, plots, activePet), balance: balance - cost };
-  });
-}
-
-/** POST /garden/expand — grow the grid one step (100% burned). */
-export async function expand(playerId: string, key: string, gridSize: number) {
-  return withIdempotency(playerId, key, async (tx) => {
-    await lockGarden(tx, playerId);
-    const [garden, player] = await Promise.all([
-      tx.garden.findUniqueOrThrow({ where: { playerId } }),
-      tx.player.findUniqueOrThrow({ where: { id: playerId } }),
-    ]);
-    if (gridSize !== garden.gridSize + 1 || gridSize > MAX_GRID_SIZE) {
-      throw Err.validation('Can only expand to the next grid size');
-    }
-    const expansion = GRID_EXPANSIONS.find((e) => e.gridSize === gridSize);
-    if (!expansion) throw Err.validation('Invalid grid size');
-    if (levelFromXp(player.xp).level < expansion.levelRequired) {
-      throw Err.notUnlocked(`Grid ${gridSize}×${gridSize} locked`);
-    }
-
-    const cost = BigInt(expansion.cost);
-    const balance = await balanceOf(playerId, tx);
-    if (balance < cost) throw Err.insufficientBalance();
-
-    if (cost > 0n) {
-      await writeLedger(tx, [
-        { playerId, amount: -cost, reason: 'expand_cost', refType: 'grid', refId: String(gridSize) },
-      ]);
-      await writeTreasury(tx, [{ kind: 'burn', amount: cost, ref: 'expand' }]);
-    }
-
-    const plots = expandPlots(asPlots(garden.plots), gridSize);
-    await tx.garden.update({ where: { playerId }, data: { gridSize, plots: plotsForDb(plots) } });
-
-    const activePet = (garden.activePet as ActivePet | null) ?? null;
-    return { garden: gardenView(gridSize, plots, activePet), balance: balance - cost };
-  });
 }

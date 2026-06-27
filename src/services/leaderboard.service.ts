@@ -1,7 +1,5 @@
 import type { MutationResult } from '../game/index.js';
-import { MUTATION_HUNTER_POOL_RATIO } from '../game/index.js';
 import { prisma, type Tx } from '../db/prisma.js';
-import { rewardPoolBalance } from '../lib/ledger.js';
 
 export type Board = 'harvestValue' | 'mutationHunter';
 
@@ -23,23 +21,16 @@ export function nextResetAt(date: Date): Date {
   return monday;
 }
 
-/** Fraction of the reward pool allocated to a board. */
-export function boardPoolRatio(board: Board): number {
-  return board === 'mutationHunter' ? MUTATION_HUNTER_POOL_RATIO : 1 - MUTATION_HUNTER_POOL_RATIO;
-}
-
-/** GET /leaderboard — top entries, the caller's rank, the board pool, reset time. */
+/** GET /leaderboard — top entries, the caller's rank, reset time. Boards are
+ *  bragging-rights only; there is no monetary reward pool (buy-to-play). */
 export async function getLeaderboard(board: Board, playerId: string, now = new Date()) {
   const weekStart = weekStartOf(now);
-  const [rows, pool] = await Promise.all([
-    prisma.leaderboardScore.findMany({
-      where: { weekStart, board },
-      orderBy: { score: 'desc' },
-      take: 100,
-      include: { player: { select: { displayName: true, walletPubkey: true } } },
-    }),
-    rewardPoolBalance(),
-  ]);
+  const rows = await prisma.leaderboardScore.findMany({
+    where: { weekStart, board },
+    orderBy: { score: 'desc' },
+    take: 100,
+    include: { player: { select: { displayName: true, walletPubkey: true } } },
+  });
 
   const mine = await prisma.leaderboardScore.findUnique({
     where: { playerId_weekStart_board: { playerId, weekStart, board } },
@@ -61,7 +52,7 @@ export async function getLeaderboard(board: Board, playerId: string, now = new D
       score: r.score,
     })),
     myRank,
-    pool: BigInt(Math.floor(Number(pool) * boardPoolRatio(board))),
+    pool: 0n,
     resetsAt: nextResetAt(now),
   };
 }

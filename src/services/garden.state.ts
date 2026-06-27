@@ -1,11 +1,7 @@
-import type { ActivePet, Plot } from '../game/index.js';
-import { plotCount, SPRINKLERS, manhattanCoverage } from '../game/index.js';
+import type { Plot } from '../game/index.js';
+import { plotCount } from '../game/index.js';
 import type { Tx } from '../db/prisma.js';
 import { Prisma } from '@prisma/client';
-
-/** Starting $BLOOM — enough runway to plant a full garden and ride out the
- *  gacha variance until the first mutations pay off. */
-export const STARTING_BLOOM = 1000n;
 
 /** Garden size a new player starts with (3×3 = 9 plots). */
 export const STARTING_GRID_SIZE = 3;
@@ -49,22 +45,7 @@ export async function lockGarden(tx: Tx, playerId: string): Promise<void> {
   await tx.$queryRaw`SELECT "playerId" FROM gardens WHERE "playerId" = ${playerId}::uuid FOR UPDATE`;
 }
 
-/**
- * Mutation bonus from sprinklers covering `plotIndex`. Multiple covering
- * sprinklers do NOT stack — the strongest applies (conservative).
- */
-export function sprinklerCoverageBonus(plots: Plot[], plotIndex: number, gridSize: number): number {
-  let best = 0;
-  for (const plot of plots) {
-    if (plot.type !== 'sprinkler' || !plot.sprinklerId) continue;
-    const def = SPRINKLERS[plot.sprinklerId];
-    const covered = manhattanCoverage(plot.index, def.coverageRadius, gridSize);
-    if (covered.includes(plotIndex)) best = Math.max(best, def.mutationBonus);
-  }
-  return best;
-}
-
 /** Client-facing garden snapshot. */
-export function gardenView(gridSize: number, plots: Plot[], activePet: ActivePet | null) {
-  return { gridSize, plots, activePet };
+export function gardenView(gridSize: number, plots: Plot[]) {
+  return { gridSize, plots };
 }

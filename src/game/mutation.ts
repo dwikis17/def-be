@@ -5,29 +5,25 @@ import type { Rng } from './rng.js';
 import { serverRng } from './rng.js';
 
 /**
- * Context fed into a harvest roll. Built server-side from the crop, adjacent
- * sprinklers, the active pet, and the currently-persisted weather (docs §02 §4).
+ * Context fed into a harvest roll. Built server-side from the crop and the
+ * currently-persisted weather (docs §02 §4).
  */
 export type MutationContext = {
   cropMutationModifier?: number;
-  sprinklerBonus?: number;
-  petBonus?: number;
   weatherMultiplier?: number;
   weatherTierBonus?: Partial<Record<MutationTier, number>>;
 };
 
 /**
  * Effective per-tier chance — docs §03 formula:
- *   (base + base*weatherTierBonus) * cropMod * (1+sprinkler) * (1+pet) * weatherMult
+ *   (base + base*weatherTierBonus) * cropMod * weatherMult
  */
 export function calculateMutationChance(tier: MutationTier, ctx: MutationContext): number {
   const def = MUTATIONS[tier];
   const cropMod = ctx.cropMutationModifier ?? 1;
-  const sprinkler = 1 + (ctx.sprinklerBonus ?? 0);
-  const pet = 1 + (ctx.petBonus ?? 0);
   const weatherMult = ctx.weatherMultiplier ?? 1;
   const tierBonus = ctx.weatherTierBonus?.[tier] ?? 0;
-  return (def.baseChance + def.baseChance * tierBonus) * cropMod * sprinkler * pet * weatherMult;
+  return (def.baseChance + def.baseChance * tierBonus) * cropMod * weatherMult;
 }
 
 /** Roll a base mutation tier, rarest → common; first hit wins (else common). */

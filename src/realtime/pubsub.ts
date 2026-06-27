@@ -9,9 +9,7 @@ import { EventEmitter } from 'node:events';
 export type ServerMessage =
   | { type: 'weather.update'; event: string; endsAt: string | null; mutationMultiplier: number; bonusTiers: Record<string, number> }
   | { type: 'leaderboard.update'; board: string; top: unknown[]; pool: number; resetsAt: string | null }
-  | { type: 'market.new'; listing: unknown }
-  | { type: 'market.sold'; listingId: string }
-  | { type: 'claim.settled'; claimId: string; signature: string }
+  | { type: 'purchase.settled'; purchaseId: string; kind: string }
   | { type: 'nft.minted'; nftId: string; assetId: string };
 
 const BROADCAST = 'broadcast';

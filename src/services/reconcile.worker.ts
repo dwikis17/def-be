@@ -2,8 +2,7 @@ import type PgBoss from 'pg-boss';
 import { prisma } from '../db/prisma.js';
 import { logger } from '../lib/logger.js';
 import { QUEUES } from '../jobs/boss.js';
-import { economyTotals } from '../lib/ledger.js';
-import { enqueueClaimTransfer, enqueueCnftMint } from './chain.queue.js';
+import { enqueuePurchaseVerify, enqueueCnftMint } from './chain.queue.js';
 
 const STALE_MINUTES = 15;
 
@@ -22,8 +21,8 @@ const STALE_MINUTES = 15;
 export async function runReconcile(now = new Date()): Promise<void> {
   const cutoff = new Date(now.getTime() - STALE_MINUTES * 60 * 1000);
 
-  const [stalePendingClaims, stalePendingNfts, totals] = await Promise.all([
-    prisma.claim.findMany({
+  const [stalePendingPurchases, stalePendingNfts] = await Promise.all([
+    prisma.purchase.findMany({
       where: { status: 'pending', createdAt: { lt: cutoff } },
       select: { id: true },
     }),
@@ -31,15 +30,14 @@ export async function runReconcile(now = new Date()): Promise<void> {
       where: { chainStatus: 'pending', createdAt: { lt: cutoff } },
       select: { id: true },
     }),
-    economyTotals(),
   ]);
 
-  if (stalePendingClaims.length > 0) {
+  if (stalePendingPurchases.length > 0) {
     logger.warn(
-      { stalePendingClaims: stalePendingClaims.length },
-      'reconcile: re-enqueuing stale pending claims (>15m)',
+      { stalePendingPurchases: stalePendingPurchases.length },
+      'reconcile: re-enqueuing stale pending purchases (>15m)',
     );
-    for (const c of stalePendingClaims) await enqueueClaimTransfer({ claimId: c.id });
+    for (const p of stalePendingPurchases) await enqueuePurchaseVerify({ purchaseId: p.id });
   }
   if (stalePendingNfts.length > 0) {
     logger.warn(
@@ -48,16 +46,6 @@ export async function runReconcile(now = new Date()): Promise<void> {
     );
     for (const n of stalePendingNfts) await enqueueCnftMint({ nftId: n.id });
   }
-
-  logger.info(
-    {
-      totalBurned: totals.totalBurned.toString(),
-      rewardPool: totals.rewardPool.toString(),
-      treasury: totals.treasury.toString(),
-      circulating: totals.circulating.toString(),
-    },
-    'reconcile snapshot',
-  );
 }
 
 /** Register the reconcile job (every 15 minutes). */

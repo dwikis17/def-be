@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  splitSeedCost,
-  calculateMarketplaceFees,
-  payoutForRank,
   rollMutation,
   calculateMutationChance,
   checkHybridBreeding,
@@ -17,34 +14,6 @@ import {
   seededRng,
   type Plot,
 } from '../../src/game/index.js';
-
-describe('produce value', () => {
-  it('floor(baseHarvest × tier multiplier) for sellable produce', async () => {
-    const { produceUnitValue } = await import('../../src/services/inventory.service.js');
-    expect(produceUnitValue('carrot', 'common')).toBe(40); // 40 × 1
-    expect(produceUnitValue('tomato', 'frozen')).toBe(65 * 5); // 325
-    expect(produceUnitValue('potato', 'wet')).toBe(45 * 2); // 90
-  });
-});
-
-describe('economy splits', () => {
-  it('splits seed cost 50/50 with remainder to treasury', () => {
-    expect(splitSeedCost(50)).toEqual({ burned: 25, treasury: 25 });
-    expect(splitSeedCost(75)).toEqual({ burned: 37, treasury: 38 });
-  });
-
-  it('marketplace fees are 3% total and seller nets the rest', () => {
-    const f = calculateMarketplaceFees(1000);
-    expect(f).toMatchObject({ burn: 10, reward: 10, treasury: 10, totalFee: 30, sellerReceives: 970 });
-  });
-
-  it('leaderboard payout shares by rank', () => {
-    expect(payoutForRank(1, 10000)).toBe(1500);
-    expect(payoutForRank(2, 10000)).toBe(1000);
-    expect(payoutForRank(11, 10000)).toBe(50);
-    expect(payoutForRank(200, 10000)).toBe(0);
-  });
-});
 
 describe('levels', () => {
   it('xp curve is level * 100', () => {
@@ -73,8 +42,6 @@ describe('mutation roll', () => {
   it('higher context boosts rare-tier chance', () => {
     const neutral = calculateMutationChance('gold', {});
     const boosted = calculateMutationChance('gold', {
-      sprinklerBonus: 0.6,
-      petBonus: 0.4,
       weatherMultiplier: 3,
       weatherTierBonus: { gold: 1.5 },
     });

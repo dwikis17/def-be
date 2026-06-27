@@ -3,8 +3,6 @@ import {
   CROPS,
   MUTATIONS,
   WEATHER,
-  SPRINKLERS,
-  PETS,
   GRID_EXPANSIONS,
   XP_REWARDS,
 } from '../../src/game/index.js';
@@ -18,8 +16,6 @@ describe('canonical constants snapshot', () => {
   it('crops', () => expect(CROPS).toMatchSnapshot());
   it('mutations', () => expect(MUTATIONS).toMatchSnapshot());
   it('weather', () => expect(WEATHER).toMatchSnapshot());
-  it('sprinklers', () => expect(SPRINKLERS).toMatchSnapshot());
-  it('pets', () => expect(PETS).toMatchSnapshot());
   it('grid expansions', () => expect(GRID_EXPANSIONS).toMatchSnapshot());
   it('xp rewards', () => expect(XP_REWARDS).toMatchSnapshot());
 });

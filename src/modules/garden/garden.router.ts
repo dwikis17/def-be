@@ -27,19 +27,3 @@ gardenRouter.post('/harvest', validate({ body: harvestBody }), async (req, res) 
   const { body } = validated<z.infer<typeof harvestBody>>(req);
   res.json(await garden.harvest(player.id, req.idempotencyKey!, body!.plotIndex));
 });
-
-const sprinklerBody = z.object({ plotIndex, sprinklerId: z.string() });
-gardenRouter.post('/sprinkler', validate({ body: sprinklerBody }), async (req, res) => {
-  const player = getPlayer(req);
-  const { body } = validated<z.infer<typeof sprinklerBody>>(req);
-  res.json(
-    await garden.placeSprinkler(player.id, req.idempotencyKey!, body!.plotIndex, body!.sprinklerId),
-  );
-});
-
-const expandBody = z.object({ gridSize: z.number().int().min(3).max(6) });
-gardenRouter.post('/expand', validate({ body: expandBody }), async (req, res) => {
-  const player = getPlayer(req);
-  const { body } = validated<z.infer<typeof expandBody>>(req);
-  res.json(await garden.expand(player.id, req.idempotencyKey!, body!.gridSize));
-});

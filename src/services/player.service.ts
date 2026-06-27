@@ -1,12 +1,11 @@
 import type { Player } from '@prisma/client';
 import { prisma, type Tx } from '../db/prisma.js';
-import { balanceOf } from '../lib/ledger.js';
-import { levelFromXp, type ActivePet } from '../game/index.js';
+import { levelFromXp } from '../game/index.js';
 import { STARTING_GRID_SIZE, initialPlots, asPlots } from './garden.state.js';
 import { getActiveWeatherView } from './weather.service.js';
 import { getInventory } from './inventory.service.js';
 
-/** Create a wallet player + initial garden (one tx). New players start with 0 $BLOOM. */
+/** Create a wallet player + initial garden (one tx). New players own no seeds. */
 export async function createPlayerWithGarden(
   tx: Tx,
   opts: { walletPubkey: string; displayName?: string },
@@ -44,36 +43,11 @@ export function toPlayerView(player: Player) {
   };
 }
 
-/** Paginated ledger history (newest first), cursor by ledger id. */
-export async function getLedgerPage(playerId: string, cursor?: string, take = 50) {
-  const limit = Math.min(Math.max(take, 1), 100);
-  const rows = await prisma.ledger.findMany({
-    where: { playerId },
-    orderBy: { id: 'desc' },
-    take: limit + 1,
-    ...(cursor ? { cursor: { id: BigInt(cursor) }, skip: 1 } : {}),
-  });
-  const hasMore = rows.length > limit;
-  const page = hasMore ? rows.slice(0, limit) : rows;
-  return {
-    entries: page.map((r) => ({
-      id: r.id.toString(),
-      amount: r.amount,
-      reason: r.reason,
-      refType: r.refType,
-      refId: r.refId,
-      createdAt: r.createdAt,
-    })),
-    nextCursor: hasMore ? page[page.length - 1]!.id.toString() : null,
-  };
-}
-
-/** Full `/me` snapshot: player, garden, pet, weather, balance. */
+/** Full `/me` snapshot: player, garden, weather, owned seeds. */
 export async function getMeSnapshot(playerId: string) {
-  const [player, garden, balance, weather, inventory] = await Promise.all([
+  const [player, garden, weather, inventory] = await Promise.all([
     prisma.player.findUniqueOrThrow({ where: { id: playerId } }),
     prisma.garden.findUniqueOrThrow({ where: { playerId } }),
-    balanceOf(playerId),
     getActiveWeatherView(),
     getInventory(playerId),
   ]);
@@ -83,10 +57,8 @@ export async function getMeSnapshot(playerId: string) {
     garden: {
       gridSize: garden.gridSize,
       plots: asPlots(garden.plots),
-      activePet: (garden.activePet as ActivePet | null) ?? null,
     },
     weather,
-    balance,
     inventory,
   };
 }
