@@ -32,6 +32,18 @@ const EnvSchema = z.object({
   BLOOM_MINT_ADDRESS: z.string().optional(),
   TREASURY_KEYPAIR: z.string().optional(),
   MERKLE_TREE_ADDRESS: z.string().optional(),
+
+  // Dev/testing faucet: mints free $BLOOM straight to a player's wallet,
+  // claimable repeatedly. Set FAUCET_ENABLED=false in prod to switch it off
+  // without a code change. Treated as enabled unless explicitly 'false'/'0'/''.
+  FAUCET_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => {
+      const s = v.trim().toLowerCase();
+      return s !== 'false' && s !== '0' && s !== '';
+    }),
+  FAUCET_AMOUNT: z.coerce.number().int().positive().default(1000),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

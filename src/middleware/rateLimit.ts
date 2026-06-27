@@ -34,3 +34,7 @@ export const valueActionLimiter = rateLimit({ ...shared, windowMs: 60_000, limit
 
 /** General authenticated reads. */
 export const generalLimiter = rateLimit({ ...shared, windowMs: 60_000, limit: 300 });
+
+/** Faucet claims — repeatable, but each one is an on-chain mint that spends
+ *  treasury SOL on fees, so cap the rate to blunt abuse. */
+export const faucetLimiter = rateLimit({ ...shared, windowMs: 60_000, limit: 10 });
