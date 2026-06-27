@@ -44,6 +44,26 @@ const EnvSchema = z.object({
       return s !== 'false' && s !== '0' && s !== '';
     }),
   FAUCET_AMOUNT: z.coerce.number().int().positive().default(1000),
+
+  // NFT passive income: held cNFTs accrue $BLOOM over time, claimed on demand.
+  // Per-NFT hourly yield = YIELD_BASE_PER_HOUR × the NFT's rarity multiplier
+  // (e.g. base 10 × a Diamond's 100 = 1000/hr). Set YIELD_ENABLED=false in prod
+  // to switch it off without a code change.
+  YIELD_ENABLED: z
+    .string()
+    .default('true')
+    .transform((v) => {
+      const s = v.trim().toLowerCase();
+      return s !== 'false' && s !== '0' && s !== '';
+    }),
+  YIELD_BASE_PER_HOUR: z.coerce.number().nonnegative().default(10),
+  YIELD_MIN_CLAIM: z.coerce.number().int().nonnegative().default(1),
+
+  // DAS-capable RPC (Helius/Triton) for getAssetsByOwner — used to verify a
+  // wallet still holds an NFT before paying yield. The public cluster RPC does
+  // NOT support DAS; falls back to SOLANA_RPC_URL/cluster if unset (claims then
+  // fail with a clear error until a real DAS endpoint is configured).
+  DAS_RPC_URL: z.string().optional(),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

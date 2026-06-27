@@ -117,6 +117,9 @@ model Nft {
   assetId         String?
   txSignature     String?
   mintedAt        DateTime?
+  // Passive-income accrual marker: yield is computed from this instant (falls
+  // back to mintedAt when null) up to now, then reset on each claim.
+  yieldClaimedAt  DateTime?
   createdAt       DateTime      @default(now())
 
   @@index([playerId])

@@ -8,6 +8,7 @@ import { purchaseRouter } from './modules/purchase/purchase.router.js';
 import { leaderboardRouter } from './modules/leaderboard/leaderboard.router.js';
 import { nftRouter } from './modules/nft/nft.router.js';
 import { faucetRouter } from './modules/faucet/faucet.router.js';
+import { yieldRouter } from './modules/yield/yield.router.js';
 
 /**
  * Mounts all domain routers. Kept in one place so the API surface is easy to
@@ -23,4 +24,5 @@ export function registerRoutes(app: Express): void {
   app.use('/leaderboard', leaderboardRouter);
   app.use('/nfts', nftRouter);
   app.use('/faucet', faucetRouter);
+  app.use('/yield', yieldRouter);
 }
