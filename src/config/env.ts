@@ -10,7 +10,7 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   CORS_ORIGINS: z
     .string()
-    .default('http://localhost:3002')
+    .default('http://localhost:3002,https://defi-game-alpha.vercel.app')
     .transform((s) => s.split(',').map((o) => o.trim()).filter(Boolean)),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
